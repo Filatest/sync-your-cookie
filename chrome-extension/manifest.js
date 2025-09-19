@@ -26,8 +26,10 @@ const manifest = Object.assign(
     name: 'Sync Your Cookie',
     version: packageJson.version,
     description: 'A browser extension that syncs and manages your cookies to your cloudflare',
-    permissions: ['cookies', "activeTab", 'tabs', 'storage'].concat(sidePanelConfig.permissions),
+    permissions: ['cookies', "activeTab", 'tabs', 'storage', 'scripting', 'windows'].concat(sidePanelConfig.permissions),
     host_permissions: ['<all_urls>'],
+    // Enable incognito mode support
+    incognito: 'spanning',
     options_page: 'options/index.html',
     background: {
       service_worker: 'background.iife.js',

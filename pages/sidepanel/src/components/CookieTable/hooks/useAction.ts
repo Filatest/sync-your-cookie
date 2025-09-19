@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { CookieItem } from './../index';
 import { useSelected } from './useSelected';
 
-export const useAction = (cookie: Cookie) => {
+export const useAction = (cookie: Cookie, isIncognito?: boolean) => {
   const [loading, setLoading] = useState(false);
   const [currentSearchStr, setCurrentSearchStr] = useState('');
   const {
@@ -27,7 +27,11 @@ export const useAction = (cookie: Cookie) => {
   const handleDelete = async (cookie: CookieItem) => {
     try {
       setLoading(true);
-      await cookieAction.handleRemove(cookie.host);
+  await (cookieAction.handleRemove as any)?.({ host: cookie.host, isIncognito });
+      // 删除后强制刷新 cookieMap，无论是否无痕模式
+      if (window.location.href.includes('sidepanel') && window.__INC_SYNC__) {
+        await window.__INC_SYNC__.refreshIncognitoStorage?.();
+      }
     } finally {
       setLoading(false);
     }

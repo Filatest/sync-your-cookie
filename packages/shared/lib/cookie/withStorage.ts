@@ -1,6 +1,7 @@
 import { ICookie, ILocalStorageItem } from '@sync-your-cookie/protobuf';
 import { Cookie, cookieStorage } from '@sync-your-cookie/storage/lib/cookieStorage';
 import { domainStatusStorage } from '@sync-your-cookie/storage/lib/domainStatusStorage';
+import { incognitoCookieStorage } from '@sync-your-cookie/storage/lib/incognitoCookieStorage';
 
 import { AccountInfo, cloudflareStorage } from '@sync-your-cookie/storage/lib/cloudflareStorage';
 
@@ -9,9 +10,11 @@ import { WriteResponse } from '../cloudflare';
 import {
   editAndWriteCookies,
   mergeAndWriteCookies,
+  mergeAndWriteCookiesForIncognito,
   mergeAndWriteMultipleDomainCookies,
   readCookiesMap,
-  removeAndWriteCookies,
+  readCookiesMapWithStatusForIncognito,
+  removeAndWriteCookies
 } from './withCloudflare';
 
 export const readCookiesMapWithStatus = async (cloudflareInfo: AccountInfo) => {
@@ -135,6 +138,11 @@ export const pushCookies = async (domain: string, cookies: ICookie[], localStora
       pushing: true,
     });
     const oldCookie = await readCookiesMapWithStatus(cloudflareInfo);
+    console.log('📥 pushCookies -> oldCookie domain keys:', Object.keys(oldCookie?.domainCookieMap || {}));
+    console.log(`📥 pushCookies -> incoming cookies count for ${domain}: ${cookies?.length}`);
+    if (cookies && cookies.length > 0) {
+      console.log('📥 pushCookies sample:', cookies.slice(0,5).map(c => ({ name: c.name, domain: c.domain, path: c.path })));
+    }
     const [res, cookieMap] = await mergeAndWriteCookies(cloudflareInfo, domain, cookies, localStorageItems, oldCookie);
     console.log("res", res);
 
@@ -144,6 +152,37 @@ export const pushCookies = async (domain: string, cookies: ICookie[], localStora
     return res;
   } catch (e) {
     console.error('pushCookies fail err', e);
+    return Promise.reject(e);
+  } finally {
+    await domainStatusStorage.update({
+      pushing: false,
+    });
+  }
+};
+
+export const pushCookiesForIncognito = async (domain: string, cookies: ICookie[], localStorageItems: ILocalStorageItem[]=[]): Promise<WriteResponse> => {
+  const cloudflareInfo = await cloudflareStorage.get();
+  try {
+    const domainStatus = await domainStatusStorage.get();
+    if (domainStatus.pushing) return Promise.reject('the cookie is pushing');
+    await domainStatusStorage.update({
+      pushing: true,
+    });
+    const oldCookie = await readCookiesMapWithStatusForIncognito(cloudflareInfo);
+    console.log('🎭 pushCookiesForIncognito -> oldCookie domain keys:', Object.keys(oldCookie?.domainCookieMap || {}));
+    console.log(`🎭 pushCookiesForIncognito -> incoming cookies count for ${domain}: ${cookies?.length}`);
+    if (cookies && cookies.length > 0) {
+      console.log('🎭 pushCookiesForIncognito sample:', cookies.slice(0,5).map(c => ({ name: c.name, domain: c.domain, path: c.path })));
+    }
+    const [res, cookieMap] = await mergeAndWriteCookiesForIncognito(cloudflareInfo, domain, cookies, localStorageItems, oldCookie);
+    console.log("🎭 pushCookiesForIncognito res", res);
+
+    if (res.success) {
+      await incognitoCookieStorage.set(cookieMap);
+    }
+    return res;
+  } catch (e) {
+    console.error('🎭 pushCookiesForIncognito fail err', e);
     return Promise.reject(e);
   } finally {
     await domainStatusStorage.update({
@@ -191,12 +230,13 @@ export const removeCookies = async (domain: string): Promise<WriteResponse> => {
     // const oldCookie = await cookieStorage.get();
     const oldCookie = await readCookiesMapWithStatus(cloudflareInfo);
     const [res, cookieMap] = await removeAndWriteCookies(cloudflareInfo, domain, oldCookie);
+    if (res && res.success) {
+      cookieStorage.update(cookieMap);
+      console.log(`[Normal] Removed all cookies for domain ${domain}`, res);
+    }
     await domainStatusStorage.update({
       pushing: false,
     });
-    if (res.success) {
-      cookieStorage.update(cookieMap);
-    }
     return res;
   } catch (e) {
     console.error('removeCookies fail err', e);

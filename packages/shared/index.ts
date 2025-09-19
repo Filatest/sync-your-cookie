@@ -5,6 +5,8 @@ export * from './lib/hoc';
 export * from './lib/hooks';
 export * from './lib/Providers';
 
+export * from './lib/incognito';
 export * from './lib/message';
 export * from './lib/utils';
+
 

@@ -38,6 +38,29 @@ export const writeCloudflareKV = async (value: string, accountId: string, namesp
 };
 
 /**
+ * Write to Cloudflare KV using incognito storage key
+ * @param value specify the value to write
+ * @param accountId cloudflare account id
+ * @param namespaceId cloudflare namespace id
+ * @param token api token
+ * @returns promise<res>
+ */
+export const writeCloudflareKVForIncognito = async (value: string, accountId: string, namespaceId: string, token: string) => {
+  const settings = settingsStorage.getSnapshot();
+  const storageKey = settings?.incognitoStorageKey || `${settings?.storageKey || 'sync-your-cookie'}-incognito`;
+  
+  console.log('💾 Writing to incognito storage key:', storageKey);
+  
+  const url = `https://api.cloudflare.com/client/v4/accounts/${accountId}/storage/kv/namespaces/${namespaceId}/values/${storageKey}`;
+  const options = {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: value,
+  };
+  return fetch(url, options).then(res => res.json());
+};
+
+/**
  *
  * @param accountId cloudflare account id
  * @param namespaceId cloudflare namespace id
@@ -46,6 +69,40 @@ export const writeCloudflareKV = async (value: string, accountId: string, namesp
  */
 export const readCloudflareKV = async (accountId: string, namespaceId: string, token: string) => {
   const storageKey = settingsStorage.getSnapshot()?.storageKey;
+  const url = `https://api.cloudflare.com/client/v4/accounts/${accountId}/storage/kv/namespaces/${namespaceId}/values/${storageKey}`;
+  const options = {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+  };
+  return fetch(url, options).then(async res => {
+    if (res.status === 404) {
+      return '';
+    }
+    if (res.status === 200) {
+      const text = await res.text();
+      return text.trim();
+    } else {
+      return Promise.reject(await res.json());
+    }
+  });
+};
+
+/**
+ * Read from Cloudflare KV using incognito storage key
+ * @param accountId cloudflare account id
+ * @param namespaceId cloudflare namespace id  
+ * @param token api token
+ * @returns Promise<res>
+ */
+export const readCloudflareKVForIncognito = async (accountId: string, namespaceId: string, token: string) => {
+  const settings = settingsStorage.getSnapshot();
+  const storageKey = settings?.incognitoStorageKey || `${settings?.storageKey || 'sync-your-cookie'}-incognito`;
+  
+  console.log('🔍 Reading from incognito storage key:', storageKey);
+  
   const url = `https://api.cloudflare.com/client/v4/accounts/${accountId}/storage/kv/namespaces/${namespaceId}/values/${storageKey}`;
   const options = {
     method: 'GET',

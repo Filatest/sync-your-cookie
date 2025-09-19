@@ -12,6 +12,7 @@
 
 ### 功能
 - 支持同步 Cookie 到 Cloudflare
+- **🆕 隐身模式同步**: 自动将 cookie 同步到访客模式，在陌生电脑上安全浏览而无需重复登录
 - 支持为不同站点配置`Auto Merge`和`Auto Push`规则
 - Cookie数据经过 protobuf 编码传输
 - 提供了一个管理面板，方便查看、复制、管理已经同步的 Cookie 数据

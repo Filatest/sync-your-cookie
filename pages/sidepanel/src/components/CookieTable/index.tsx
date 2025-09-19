@@ -1,5 +1,5 @@
 /* eslint-disable jsx-a11y/click-events-have-key-events */
-import { useStorageSuspense } from '@sync-your-cookie/shared';
+import { useIncognitoMode, useStorageSuspense } from '@sync-your-cookie/shared';
 import {
   Button,
   DataTable,
@@ -28,10 +28,12 @@ import {
   Table as TableIcon,
   Trash,
 } from 'lucide-react';
+import React from 'react';
 
 import { cookieStorage } from '@sync-your-cookie/storage/lib/cookieStorage';
 import { domainConfigStorage } from '@sync-your-cookie/storage/lib/domainConfigStorage';
 import { domainStatusStorage } from '@sync-your-cookie/storage/lib/domainStatusStorage';
+import { incognitoCookieStorage } from '@sync-your-cookie/storage/lib/incognitoCookieStorage';
 
 import type { ColumnDef } from '@sync-your-cookie/ui';
 import { useAction } from './hooks/useAction';
@@ -46,10 +48,40 @@ export type CookieItem = {
 };
 
 const CookieTable = () => {
+  // 监听日志广播（无痕和普通模式）
+  React.useEffect(() => {
+    const handler = (message: any) => {
+      if (message?.type === 'INC_LOG' && message?.payload?.msg) {
+        console.log('[Incognito]', message.payload.msg, message.payload);
+      }
+      if (message?.type === 'NORMAL_LOG' && message?.payload?.msg) {
+        console.log('[Normal]', message.payload.msg, message.payload);
+      }
+    };
+    chrome.runtime.onMessage.addListener(handler);
+    return () => {
+      chrome.runtime.onMessage.removeListener(handler);
+    };
+  }, []);
+  // 一键 dump 按钮点击事件
+  const handleDumpAll = async () => {
+    chrome.runtime.sendMessage({ type: 'DUMP_ALL_STORAGE' }, res => {
+      if (res?.ok) {
+        // 可选：弹窗提示
+        console.log('已注入存储对比脚本，请在页面控制台查看结果');
+      } else {
+        console.warn('注入脚本失败');
+      }
+    });
+  };
+  const { isIncognito } = useIncognitoMode();
+  
   const domainConfig = useStorageSuspense(domainConfigStorage);
   const domainStatus = useStorageSuspense(domainStatusStorage);
 
-  const cookieMap = useStorageSuspense(cookieStorage);
+  // Use incognito storage if in incognito mode, otherwise use normal storage
+  const currentCookieStorage = isIncognito ? incognitoCookieStorage : cookieStorage;
+  const cookieMap = useStorageSuspense(currentCookieStorage);
 
   const {
     showCookiesColumns,
@@ -71,7 +103,7 @@ const CookieTable = () => {
     setLocalStorageMode,
     showLocalStorageColumns,
     localStorageItems,
-  } = useAction(cookieMap);
+  } = useAction(cookieMap, isIncognito);
   let domainList = [];
   let totalCookieItem = 0;
   let totalLocalStorageItem = 0;
@@ -341,8 +373,22 @@ const CookieTable = () => {
     <div className="h-screen flex flex-col">
       <div className="space-y-4 p-4 ">
         <div>
-          <h2 className="text-xl font-bold tracking-tight">Welcome back!</h2>
-          <p className="text-muted-foreground text-sm">Here&apos;s a list of your pushed { localStorageMode ? 'localStorage items' : 'cookies'}  </p>
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold tracking-tight">Welcome back!</h2>
+            <Button size="sm" variant="outline" onClick={handleDumpAll} className="ml-2">
+              🧾 {isIncognito ? '隐身模式存储对比' : '普通模式存储对比'}
+            </Button>
+            {isIncognito && (
+              <div className="flex items-center gap-2 px-2 py-1 bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 rounded-md text-xs">
+                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z" clipRule="evenodd" />
+                  <path d="M12.454 16.697L9.75 13.992a4 4 0 01-3.742-3.741L2.335 6.578A9.98 9.98 0 00.458 10c1.274 4.057 5.065 7 9.542 7 .847 0 1.669-.105 2.454-.303z" />
+                </svg>
+                <span>Incognito Mode</span>
+              </div>
+            )}
+          </div>
+          <p className="text-muted-foreground text-sm">Here&apos;s a list of your {isIncognito ? 'incognito ' : ''}pushed { localStorageMode ? 'localStorage items' : 'cookies'}  </p>
         </div>
       </div>
       <div className="h-0 flex-1 overflow-auto">

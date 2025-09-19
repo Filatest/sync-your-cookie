@@ -10,6 +10,10 @@ export enum MessageType {
   // LocalStorage
   GetLocalStorage = 'GetLocalStorage',
   SetLocalStorage = 'SetLocalStorage',
+  // Incognito mode
+  SyncToIncognito = 'SyncToIncognito',
+  ClearIncognitoCookies = 'ClearIncognitoCookies',
+  SyncNormalToIncognitoStorage = 'SyncNormalToIncognitoStorage',
 }
 
 export enum MessageErrorCode {
@@ -21,6 +25,7 @@ export type PushCookieMessagePayload = {
   host: string;
   sourceUrl?: string;
   favIconUrl?: string;
+  isIncognito?: boolean;
 };
 
 export type DomainPayload = {
@@ -29,6 +34,7 @@ export type DomainPayload = {
 
 export type RemoveCookieMessagePayload = {
   domain: string;
+  isIncognito?: boolean;
 };
 
 export type RemoveCookieItemMessagePayload = {
@@ -40,6 +46,7 @@ export type PullCookieMessagePayload = {
   domain: string;
   activeTabUrl: string;
   reload: boolean;
+  isIncognito?: boolean;
 };
 
 export type EditCookieItemMessagePayload = {
@@ -83,7 +90,20 @@ export type MessageMap = {
   [MessageType.SetLocalStorage]: {
     type: MessageType.SetLocalStorage;
     payload: SetLocalStorageMessagePayload;
-  }
+  };
+  // Incognito mode
+  [MessageType.SyncToIncognito]: {
+    type: MessageType.SyncToIncognito;
+    payload?: void;
+  };
+  [MessageType.ClearIncognitoCookies]: {
+    type: MessageType.ClearIncognitoCookies;
+    payload?: void;
+  };
+  [MessageType.SyncNormalToIncognitoStorage]: {
+    type: MessageType.SyncNormalToIncognitoStorage;
+    payload?: void;
+  };
 };
 
 // export type Message<T extends MessageType = MessageType> = {

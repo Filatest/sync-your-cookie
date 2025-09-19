@@ -5,11 +5,14 @@ import CookieTable from './components/CookieTable';
 const SidePanel = () => {
   useEffect(() => {
     chrome.runtime.onMessage.addListener(message => {
-      // Might not be as easy if there are multiple side panels open
       if (message === 'closeSidePanel') {
         window.close();
       }
     });
+    // 每次打开 sidepanel 时刷新 incognito 存储
+    if (window.__INC_SYNC__?.refreshIncognitoStorage) {
+      window.__INC_SYNC__.refreshIncognitoStorage();
+    }
   }, []);
   const { theme } = useTheme();
 

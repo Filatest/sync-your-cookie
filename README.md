@@ -21,6 +21,7 @@
 ### Features
 
 - Supports syncing cookies to Cloudflare (Include LocalStorage)
+- **🆕 Incognito Mode Sync**: Automatically sync cookies to private/guest mode for secure browsing on unfamiliar computers
 - Supports configuring `Auto Merge` and `Auto Push` rules for different sites
 - Cookie data is transmitted via protobuf encoding
 - Provides a management panel to facilitate viewing, copying, and managing synchronized cookie data

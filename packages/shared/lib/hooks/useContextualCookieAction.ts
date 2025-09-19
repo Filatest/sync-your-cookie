@@ -9,6 +9,7 @@ import {
 
 import { toast as Toast } from 'sonner';
 import { useStorageSuspense } from './index';
+import { useIncognitoMode } from './useIncognitoMode';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const catchHandler = (err: any, scene: 'push' | 'pull' | 'remove' | 'delete' | 'edit', toast: typeof Toast) => {
@@ -28,7 +29,8 @@ export const catchHandler = (err: any, scene: 'push' | 'pull' | 'remove' | 'dele
   console.log('err', err);
 };
 
-export const useCookieAction = (host: string, toast: typeof Toast) => {
+export const useContextualCookieAction = (host: string, toast: typeof Toast) => {
+  const { isIncognito } = useIncognitoMode();
   const domainStatus = useStorageSuspense(domainStatusStorage);
   const domainConfig = useStorageSuspense(domainConfigStorage);
 
@@ -37,10 +39,11 @@ export const useCookieAction = (host: string, toast: typeof Toast) => {
       host: selectedHost,
       sourceUrl,
       favIconUrl,
+      isIncognito,
     })
       .then(res => {
         if (res.isOk) {
-          toast.success('Pushed success');
+          toast.success(`Pushed success ${isIncognito ? '(Incognito)' : ''}`);
         } else {
           toast.error(res.msg || 'Pushed fail');
         }
@@ -56,11 +59,12 @@ export const useCookieAction = (host: string, toast: typeof Toast) => {
       activeTabUrl: activeTabUrl,
       domain: selectedDomain,
       reload,
+      isIncognito,
     })
       .then(res => {
         console.log('res', res);
         if (res.isOk) {
-          toast.success('Pull success');
+          toast.success(`Pull success ${isIncognito ? '(Incognito)' : ''}`);
         } else {
           toast.error(res.msg || 'Pull fail');
         }
@@ -70,9 +74,7 @@ export const useCookieAction = (host: string, toast: typeof Toast) => {
       });
   };
 
-  const handleRemove = async (params: { host?: string; isIncognito?: boolean }) => {
-    const selectedDomain = params.host || host;
-    const isIncognito = params.isIncognito || false;
+  const handleRemove = async (selectedDomain = host) => {
     return removeCookieUsingMessage({
       domain: selectedDomain,
       isIncognito,
@@ -80,8 +82,8 @@ export const useCookieAction = (host: string, toast: typeof Toast) => {
       .then(async res => {
         console.log('res', res);
         if (res.isOk) {
-          toast.success(res.msg || 'success');
-          await domainConfigStorage.removeItem(selectedDomain);
+          toast.success(res.msg || `Success ${isIncognito ? '(Incognito)' : ''}`);
+          await domainConfigStorage.removeItem(host);
         } else {
           toast.error(res.msg || 'Removed fail');
         }
@@ -104,12 +106,21 @@ export const useCookieAction = (host: string, toast: typeof Toast) => {
     getDomainItemStatus: (selectedDomain: string) => {
       return domainStatus.domainMap[selectedDomain] || {};
     },
-    toggleAutoPullState: domainConfigStorage.toggleAutoPullState,
-    toggleAutoPushState: domainConfigStorage.toggleAutoPushState,
-    togglePullingState: domainStatusStorage.togglePullingState,
-    togglePushingState: domainStatusStorage.togglePushingState,
+    toggleAutoPushState: async (selectedDomain = host) => {
+      const current = domainConfig.domainMap[selectedDomain];
+      await domainConfigStorage.updateItem(selectedDomain, {
+        autoPush: !current?.autoPush,
+      });
+    },
+    toggleAutoPullState: async (selectedDomain = host) => {
+      const current = domainConfig.domainMap[selectedDomain];
+      await domainConfigStorage.updateItem(selectedDomain, {
+        autoPull: !current?.autoPull,
+      });
+    },
     handlePush,
     handlePull,
     handleRemove,
+    isIncognito,
   };
 };
